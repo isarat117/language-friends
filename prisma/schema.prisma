@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql" // Veritabanı türünü burada belirtmelisin (MySQL, PostgreSQL vb.)
+  url      = env("DATABASE_URL") // Veritabanı URL'si .env dosyasından alınır
+}
+
+enum FriendStatus {
+  PENDING  @map("pending")
+  ACCEPTED @map("accepted")
+  REJECTED @map("rejected")
+}
+
+model User {
+  id           Int       @id @default(autoincrement()) @map("user_id")
+  email        String    @unique @map("email_address")
+  password     String    @map("password_hash")
+  firstName    String    @map("first_name")
+  lastName     String    @map("last_name")
+  birthYear    Int       @map("birth_year")
+  nationality  String    @map("nationality")
+  gender       String    @map("gender")
+  profilePhoto String?   @map("profile_photo_url") // Profil fotoğrafı
+  description  String?   @map("user_description") // Kullanıcı açıklaması
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at") // Soft delete için
+
+  userLanguages UserLanguage[] // Kullanıcının bildiği ve öğrenmek istediği diller
+  userFriends   UserFriend[]   @relation("UserAsOwner")
+  addedMe       UserFriend[]   @relation("UserAsFriend")
+  posts         UserPost[] // Fotoğraf paylaşımları
+  comments      Comment[] // Yaptığı yorumlar
+  PostLike      PostLike[]
+}
+
+model UserLanguage {
+  id         Int       @id @default(autoincrement()) @map("user_language_id")
+  userId     Int       @map("user_id")
+  languageId Int       @map("language_id")
+  level      Int       @map("proficiency_level") // Dil seviyesi (1-5 arası)
+  deletedAt  DateTime? @map("deleted_at") // Soft delete
+
+  user     User     @relation(fields: [userId], references: [id])
+  language Language @relation(fields: [languageId], references: [id])
+}
+
+model UserFriend {
+  id       Int          @id @default(autoincrement()) @map("user_friend_id")
+  userId   Int          @map("user_id")
+  friendId Int          @map("friend_id")
+  status   FriendStatus @default(PENDING) @map("friend_status")
+
+  user   User @relation("UserAsOwner", fields: [userId], references: [id])
+  friend User @relation("UserAsFriend", fields: [friendId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+}
+
+model UserPost {
+  id        Int       @id @default(autoincrement()) @map("post_id")
+  userId    Int       @map("user_id")
+  photoUrl  String    @map("photo_url") // Fotoğrafın URL'si
+  caption   String?   @map("caption")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at") // Soft delete
+
+  user     User       @relation(fields: [userId], references: [id])
+  comments Comment[] // Yorumlar
+  likes    PostLike[] // Beğeniler
+}
+
+model Comment {
+  id        Int       @id @default(autoincrement()) @map("comment_id")
+  postId    Int       @map("post_id")
+  userId    Int       @map("user_id")
+  content   String    @map("comment_content")
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at") // Soft delete
+
+  post UserPost @relation(fields: [postId], references: [id])
+  user User     @relation(fields: [userId], references: [id])
+}
+
+model PostLike {
+  id        Int       @id @default(autoincrement()) @map("post_like_id")
+  postId    Int       @map("post_id")
+  userId    Int       @map("user_id")
+  deletedAt DateTime? @map("deleted_at") // Soft delete
+
+  post UserPost @relation(fields: [postId], references: [id])
+  user User     @relation(fields: [userId], references: [id])
+}
+
+model Language {
+  id    Int            @id @default(autoincrement()) @map("language_id")
+  name  String         @unique @map("language_name")
+  users UserLanguage[]
+}
