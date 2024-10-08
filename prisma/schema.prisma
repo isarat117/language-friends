@@ -14,7 +14,7 @@ enum FriendStatus {
 }
 
 model User {
-  id           Int       @id @default(autoincrement()) @map("user_id")
+  id           Int       @id @default(autoincrement()) @map("user_id") @db.UnsignedInt
   email        String    @unique @map("email_address")
   password     String    @map("password_hash")
   firstName    String    @map("first_name")
@@ -28,41 +28,63 @@ model User {
   updatedAt    DateTime  @updatedAt @map("updated_at")
   deletedAt    DateTime? @map("deleted_at") // Soft delete için
 
-  userLanguages UserLanguage[] // Kullanıcının bildiği ve öğrenmek istediği diller
-  userFriends   UserFriend[]   @relation("UserAsOwner")
-  addedMe       UserFriend[]   @relation("UserAsFriend")
-  posts         UserPost[] // Fotoğraf paylaşımları
-  comments      Comment[] // Yaptığı yorumlar
-  PostLike      PostLike[]
+  userLanguages  UserLanguage[] // Kullanıcının bildiği ve öğrenmek istediği diller
+  userFriends    UserFriend[]     @relation("UserAsOwner")
+  addedMe        UserFriend[]     @relation("UserAsFriend")
+  posts          UserPost[] // Fotoğraf paylaşımları
+  comments       Comment[] // Yaptığı yorumlar
+  postLike       PostLike[]
+  userActivation UserActivation[]
+  followers      Follow[]         @relation("followers")
+  following      Follow[]         @relation("following")
+
+  @@map("users")
+}
+
+model UserActivation {
+  id        Int       @id @default(autoincrement()) @db.UnsignedInt
+  userId    Int       @map("user_id") @db.UnsignedInt
+  token     String    @unique @map("token")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("user_activations")
 }
 
 model UserLanguage {
-  id         Int       @id @default(autoincrement()) @map("user_language_id")
-  userId     Int       @map("user_id")
-  languageId Int       @map("language_id")
+  id         Int       @id @default(autoincrement()) @map("user_language_id") @db.UnsignedInt
+  userId     Int       @map("user_id") @db.UnsignedInt
+  languageId Int       @map("language_id") @db.UnsignedInt
   level      Int       @map("proficiency_level") // Dil seviyesi (1-5 arası)
   deletedAt  DateTime? @map("deleted_at") // Soft delete
 
   user     User     @relation(fields: [userId], references: [id])
   language Language @relation(fields: [languageId], references: [id])
+
+  @@map("user_languages")
 }
 
 model UserFriend {
-  id       Int          @id @default(autoincrement()) @map("user_friend_id")
-  userId   Int          @map("user_id")
-  friendId Int          @map("friend_id")
+  id       Int          @id @default(autoincrement()) @map("user_friend_id") @db.UnsignedInt
+  userId   Int          @map("user_id") @db.UnsignedInt
+  friendId Int          @map("friend_id") @db.UnsignedInt
   status   FriendStatus @default(PENDING) @map("friend_status")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   user   User @relation("UserAsOwner", fields: [userId], references: [id])
   friend User @relation("UserAsFriend", fields: [friendId], references: [id])
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  @@map("user_friends")
 }
 
 model UserPost {
-  id        Int       @id @default(autoincrement()) @map("post_id")
-  userId    Int       @map("user_id")
+  id        Int       @id @default(autoincrement()) @map("post_id") @db.UnsignedInt
+  userId    Int       @map("user_id") @db.UnsignedInt
   photoUrl  String    @map("photo_url") // Fotoğrafın URL'si
   caption   String?   @map("caption")
   createdAt DateTime  @default(now()) @map("created_at")
@@ -72,32 +94,61 @@ model UserPost {
   user     User       @relation(fields: [userId], references: [id])
   comments Comment[] // Yorumlar
   likes    PostLike[] // Beğeniler
+
+  @@map("user_posts")
+}
+
+model Follow {
+  id          Int       @id @default(autoincrement()) @db.UnsignedInt
+  followerId  Int       @map("follower_id") @db.UnsignedInt
+  followingId Int       @map("following_id") @db.UnsignedInt
+  follower    User?     @relation("followers", fields: [followerId], references: [id])
+  following   User?     @relation("following", fields: [followingId], references: [id])
+  isFollow    Boolean   @default(true) @map("is_follow")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  @@map("follow")
 }
 
 model Comment {
-  id        Int       @id @default(autoincrement()) @map("comment_id")
-  postId    Int       @map("post_id")
-  userId    Int       @map("user_id")
+  id        Int       @id @default(autoincrement()) @map("comment_id") @db.UnsignedInt
+  postId    Int       @map("post_id") @db.UnsignedInt
+  userId    Int       @map("user_id") @db.UnsignedInt
   content   String    @map("comment_content")
   createdAt DateTime  @default(now()) @map("created_at")
   deletedAt DateTime? @map("deleted_at") // Soft delete
 
   post UserPost @relation(fields: [postId], references: [id])
   user User     @relation(fields: [userId], references: [id])
+
+  @@map("comments")
 }
 
 model PostLike {
-  id        Int       @id @default(autoincrement()) @map("post_like_id")
-  postId    Int       @map("post_id")
-  userId    Int       @map("user_id")
+  id        Int       @id @default(autoincrement()) @map("post_like_id") @db.UnsignedInt
+  postId    Int       @map("post_id") @db.UnsignedInt
+  userId    Int       @map("user_id") @db.UnsignedInt
+  createdAt DateTime  @default(now()) @map("created_at")
   deletedAt DateTime? @map("deleted_at") // Soft delete
 
   post UserPost @relation(fields: [postId], references: [id])
   user User     @relation(fields: [userId], references: [id])
+
+  @@map("likes")
 }
 
 model Language {
-  id    Int            @id @default(autoincrement()) @map("language_id")
+  id    Int            @id @default(autoincrement()) @map("language_id") @db.UnsignedInt
   name  String         @unique @map("language_name")
   users UserLanguage[]
+
+  @@map("languages")
+}
+
+model Country {
+  id   Int    @id @default(autoincrement()) @map("country_id") @db.UnsignedInt
+  name String @unique @map("country_name")
+
+  @@map("countries")
 }
